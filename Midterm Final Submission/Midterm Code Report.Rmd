@@ -1,0 +1,166 @@
+---
+title: "Visualizing Changes in NBA Team Shots Overtime"
+author: "Maddy Rilling"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+options(warn = -1)
+```
+
+```{r, echo=FALSE, message=FALSE, include=FALSE}
+## Load the necessary libraries
+library(devtools)
+library(ggplot2)
+library(nbastatR)
+
+## Install the package nbastatR from GitHub
+devtools::install_github("abresler/nbastatR")
+
+## Make buffer size larger using the vroom package to allow the large data file to load correctly 
+Sys.setenv("VROOM_CONNECTION_SIZE" = 262144)
+
+## Create variable years to get the wanted seasons for graphic
+## I choose these seasons because there is a 10 year gap between each season. This will help to exploit the differences in team shots 
+years <- c(2000, 2010, 2020)
+
+## Initialize an empty data frame to store the combined shot data for the three seasons
+combined_shot_data <- data.frame()
+
+## Loop through each season
+for (year in years) {
+  ## Retrieve shot data for Milwaukee Bucks for specified seasons
+  ## I choose to analyze the Milwaukee Bucks because they are my favorite team in the NBA
+  shot_data <- teams_shots(teams = "Milwaukee Bucks", seasons = year)
+  ## Use the rbind function to combine shot data for each season into one data frame
+  ## I used the function rbind to combine the shot data so that I could later facet the data to be able to view each seasons graph next to each other
+  combined_shot_data <- rbind(combined_shot_data, shot_data)
+}
+```
+
+```{r, echo=FALSE, message=FALSE}
+## Move to a different R code block so that the ggplot is displayed
+## Create the graphical representation of the shot data using a ggplot and store it in an object called shot_chart
+## Use locationX/10 because need to convert the data from units to feet to match the basketball court graph
+## Use locationY/10 because need to convert the data from units to feet to match the basketball court graph and shift the data down 42 feet to match the basketball court graph
+## It is necessary to convert the data for locationX and locationY from units to feet because then the data is in terms of the basketball court dimensions. This allows for the data to be plotted on a basketball court image.
+## Set color of data points to be based on if the shot taken was made or missed
+shot_chart <- ggplot(combined_shot_data, aes(x = locationX/10, y = locationY/10-42, color = typeEvent)) + 
+  ## Alpha for opacity of data points and size to reflect size of data points
+  ## Using opacity makes it easier to see the data points on the shot chart
+  ## I set the alpha equal to 0.4 because I felt like it made the dots easiest to read at this alpha. I also set the size equal to 1 because I felt like this size of dots also made the data easiest to read
+  geom_point(alpha = 0.4, size = 1) + 
+  ## Color of data points plotted with labels
+  ## Color to match the colors of the Milwaukee Bucks
+  ## Matching the colors of data points to Milwaukee Bucks colors makes it easier to understand that the graphs are for the Milwaukee Bucks shot data
+  scale_color_manual(values = c("#00471B", "#D2B48C"), name = "Shot Made", labels = c("Made","Missed")) +
+  ## Labels for the graph providing more insight into what the graph is displaying
+  labs(title = "Milwaukee Bucks Shot Chart Evolution: 3 Seasons",
+       x = "Baseline",
+       y = "Sideline") +
+  ## Faceting to plot each season's short chart next to each other
+  ## I used faceting because I like that you are able to see the three seasons next to each other. This way it is easier to look at the differences side-by-side, making it easier to interpret the graphs
+  facet_wrap(~ yearSeason, nrow = 1) +
+  ## Change theme to make it easier to see the data points and make the graph more readable
+  theme_minimal() +
+  ## Fill theme with white panel background to also help make it easier to see the data points
+  theme(panel.background = element_rect(fill = "white"))
+
+## After plotting the shot chart, I added the full basketball court on top of the shot chart
+## This way, the full court is able to be viewed even with the shot chart on top of it. It makes it easier to understand where shot locations were because the full court is easier to see
+## I used code from GitHub to construct the full court plot, but modified it to use annotate instead of geom_path so that it would plot on top of the shot chart. This was a necessary change because I had trouble plotting one ggplot on top of another. By changing the lines of code to annotate, it changes the plot so that it is not a ggplot
+## Full court code from Github user edkupfer (https://gist.github.com/edkupfer/6354964).
+shot_chart + 
+  annotate("path", x = -25, y = c(-47, 47, 47, -47, -47), color = "black") +
+  annotate("path", x = c(-25, 25), y = c(0, 0), color = "black") +
+  annotate("path", x = c(-6000:(-1)/1000, 1:6000/1000), y = c(sqrt(6^2 - c(-6000:(-1)/1000,    1:6000/1000)^2)), color = "black") +
+  annotate("path", x = c(-6000:(-1)/1000, 1:6000/1000), y = -c(sqrt(6^2 - c(-6000:(-1)/1000, 1:6000/1000)^2)), color = "black") +
+  annotate("path", x = c(-6000:(-1)/1000, 1:6000/1000), y = c(28 - sqrt(6^2 - c(-6000:(-1)/1000, 1:6000/1000)^2)), color = "black") +
+  annotate("path", x = c(-6000:(-1)/1000, 1:6000/1000), y = -c(28 - sqrt(6^2 - c(-6000:(-1)/1000, 1:6000/1000)^2)), color = "black") +
+  annotate("path", x = c(-6000:(-1)/1000, 1:6000/1000), y = c(28 + sqrt(6^2 - c(-6000:(-1)/1000, 1:6000/1000)^2)), color = "black", linetype = "dashed") +
+  annotate("path", x = c(-6000:(-1)/1000, 1:6000/1000), y = -c(28 + sqrt(6^2 - c(-6000:(-1)/1000, 1:6000/1000)^2)), color = "black", linetype = "dashed") +
+  annotate("path", x = c(-8, -8, 8, 8, -8), y = c(47, 28, 28, 47, 47), color = "black") +
+  annotate("path", x = -c(-8, -8, 8, 8, -8), y = -c(47, 28, 28, 47, 47), color = "black") +
+  annotate("path", x = c(-6, -6, 6, 6, -6), y = c(47, 28, 28, 47, 47), color = "black") +
+  annotate("path", x = c(-6, -6, 6, 6, -6), y = -c(47, 28, 28, 47, 47), color = "black") +
+  annotate("path", x = c(-4000:(-1)/1000, 1:4000/1000), y = c(41.25 - sqrt(4^2 - c(-4000:(-1)/1000, 1:4000/1000)^2)), color = "black") +
+  annotate("path", x = c(-4000:(-1)/1000, 1:4000/1000), y = -c(41.25 - sqrt(4^2 - c(-4000:(-1)/1000, 1:4000/1000)^2)), color = "black") +
+  annotate("path", x = c(-750:(-1)/1000, 1:750/1000, 750:1/1000, -1:-750/1000), y = c(c(41.75 + sqrt(0.75^2 - c(-750:(-1)/1000, 1:750/1000)^2)), c(41.75 - sqrt(0.75^2 - c(750:1/1000, -1:-750/1000)^2))), color = "black") +
+  annotate("path", x = c(-750:(-1)/1000, 1:750/1000, 750:1/1000, -1:-750/1000), y = -c(c(41.75 + sqrt(0.75^2 - c(-750:(-1)/1000, 1:750/1000)^2)), c(41.75 - sqrt(0.75^2 - c(750:1/1000, -1:-750/1000)^2))), color = "black") +
+  annotate("path", x = c(-3, 3), y = c(43, 43), color = "black", lineend = "butt") +
+  annotate("path", x = c(-3, 3), y = -c(43, 43), color = "black", lineend = "butt") +
+  annotate("path", x = c(-22, -22, -22000:(-1)/1000, 1:22000/1000, 22, 22), y = c(47, 47 - 169/12, 41.75 - sqrt(23.75^2 - c(-22000:(-1)/1000, 1:22000/1000)^2), 47 - 169/12, 47), color = "black") +
+  annotate("path", x = c(-22, -22, -22000:(-1)/1000, 1:22000/1000, 22, 22), y = -c(47, 47 - 169/12, 41.75 - sqrt(23.75^2 - c(-22000:(-1)/1000, 1:22000/1000)^2), 47 - 169/12, 47), color = "black") +
+  annotate("path", x = 25, y = c(-47, 47, 47, -47, -47), color = "black") +
+  annotate("path", x = c(-25, 25), y = c(-47, -47), color = "black") +
+  annotate("path", x = c(-25, 25), y = c(47, 47), color = "black") +
+  coord_fixed()
+
+## Here is the approach that I used for finding the optimal distance for the four point arc
+## Calculate the distance of each shot from the basket using the Pythagorean theorem
+combined_shot_data$distance_ft <- sqrt((combined_shot_data$locationX * 10)^2 + (combined_shot_data$locationY * 10)^2)
+
+## Aggregate by the isShotMade variable
+## This aggregation helps analyze shooting efficiency across different distances
+## combined_shot_data$isShotMade is used to tell whether each shot was a make or miss
+## list(combined_shot_data$distance_ft) specifies which grouping variable is being used, which is the distance of each shot in feet
+## FUN = mean computes the mean of isShotMade for each distance range which gives us shooting efficiency for different distances
+shooting_efficiency <- aggregate(combined_shot_data$isShotMade, 
+                                 list(combined_shot_data$distance_ft), 
+                                 FUN = mean)
+
+## Calculate the expected value for each distance range
+## Expected value represents the average points scored per shot attempt at each distance range
+## Two-point shot range
+shooting_efficiency$expected_value_2pt <- shooting_efficiency$x * 2  
+## Three-point shot range
+shooting_efficiency$expected_value_3pt <- shooting_efficiency$x * 3  
+
+## Combine expected values for two-point and three-point shots
+## Use maximum expected value for each distance range. This determines the highest expected value for each distance range
+shooting_efficiency$expected_value <- pmax(shooting_efficiency$expected_value_2pt, shooting_efficiency$expected_value_3pt)
+
+## Find the distance range that gives the highest expected value
+## This gives us the optimal distance for where the NBA should include the four point arc
+optimal_distance <- shooting_efficiency[which.max(shooting_efficiency$expected_value), "Group.1"]
+```
+
+### Analysis of Shot Charts
+
+* Throughout the years more shots are taken outside of the three point line than previous seasons.
+
+* The shots taken each season gradually get farther away from the basket overtime.
+
+* A low percentage of shots taken past half court are made.
+
+* Many of the shots attempted within a small distance of the basketball hoop are made shots.
+
+* Based on where high percentages of shots were taken can provide insight as to how opponents defense was set up. 
+
+### More In-Depth Analysis of Shot Charts
+
+* Looking at the graphs above, there is a clear trend that more shots are taken outside of the three point line than seasons past. Many of the shots taken during the 2000 season, are inside the three point arc. As we move to the 2010 season, we can see that the shots taken are beginning to move closer to the three point arc. Lastly, the 2020 season shows us that there are many more shots taken outside of the three point arc, than the past seasons of 2000 and 2010. We can see that the area inside of the three point arc has less shots taken then the past seasons. This demonstrates the trend that as the seasons go on, more shots are being taken outside of the three point arc than the previous season.
+
+* Another trend to be noted from the graphics above is that as the seasons go on, the shots begin to get further away from the basketball hoop overtime. If we begin by looking at the shot chart from the 2000 season, we can see that many of the shots are taken in the lane of the court and outside of the lane as well. Many of the shots during this season stay about two or three feet away from the three point arc, which is shown in the graph above. Moving to the 2010 season, we can see that the shots have moved closer to the three point arc than the 2000 season. During the 2010 season there is an area about a foot in front of the three point arc where not many shots were attempted. Lastly, looking at the 2020 season shot chart, we see that many of the shots that were close to the three point arc but not behind it in 2010 season have moved completely behind the three point arc. The number of shots taken inside the three point arc has decreased from the seasons previous to 2020. This is because more shots are being taken outside of the three point arc than in previous seasons,leading to the decline of shots taken inside the three point arc. 
+
+* Looking at the graphs above, we can tell that there are not many shots taken past half court. However, of the few shots that are taken past half court, a very low percentage of these shots are made. The percentage of shots made past half court for the 2000 and 2020 seasons is 0%. For both of these seasons, no shots taken past half court were made. Looking at the 2010 season, we can see that of the nine shots that were attempted past half court only one of these shots was made. Therefore, for the 2010 season, the percentage of shots made past half court was 11%. This is also a low percentage, showing us that the percentage of shots made past half court is low. This tells us that it is difficult to make shots further away from the basket, which is shown by the data.
+
+* Based on the graphs displayed above, we can see the general trend that a high percentage of shots attempted close to the basket were made shots. Looking at all three seasons, we can see that many of the data points close to the basket are green, meaning they were made baskets. This shows us that making shots closer in distance to the basketball hoop is easier. This makes sense because there is less room for error while shooting because it is closer in distance to the basketball hoop. 
+
+* Lastly, the graphs above can provide some insight as to how defense has changed throughout the seasons. For example, it is reasonable to assume that the defense played tighter to their players in the 2000 season because many shots were taken from inside the three point line. During the 2010 season, we begin to see that more three point shots are taken. This could provide some insight that some of the Bucks opponents played close defense or that some of them played defense further off. The way that the defense was played shows how the shots begin to move closer to the three point arc. Lastly, in the 2020 season, we can see that more teams began to play defense further off of the Milwaukee Bucks and perhaps many of the Bucks opponents during this season played a zone defense. This is known because the majority of shots attempted in the 2020 season were behind the three point line. Therefore, we can see the relationship between offense and defense and how a defense is played can affect where the team shoots from more frequently. This demonstrates how the graphs above can not only help our understanding of the offense but also provide some insight into the changes in defense throughout the years.
+
+### What is the optimal distance for a four point arc in the NBA? 
+
+If the NBA were to include a four point arc, what distance should they place this arc? The optimal distance for the NBA four point arc would be at 28.284 feet from the basketball hoop to the top of the arc. I found this by using the expected value of shooting efficiency from each distance.
+
+### In-Depth Explanation of the Four Point Arc Calculation 
+
+By using the expected value of shooting efficiency from each distance, we can put together the distance that the four point arc should be from the basketball hoop. I started by finding the distance of each shot from the basketball hoop using the Pythagorean theorem, which allows us to get the distance of each shot in feet. Next, using the distances I had found and using the data whether each shot was made, I found the shooting efficiency of the team. This means how well the team could shot from each distance. Next, I calculated the expected value for each data range by using the shooting efficiency for each type of shot. After this, I combined the expected value for the two point shots and three point shots and used the maximum expected value for each distance range. Lastly, I used the expected value to find the maximum distance range that would give the highest expected value. This distance that was given was 28.284 feet. What does this distance mean? This distance is the optimal range for the four point arc to be from the basketball hoop to the top of the arc. Since the four point arc's optimal distance is 28.284 feet, this would mean that the arc would just be the top part of the arc. This arc would not be able to go all the way around like the three point arc because the arc would then not fit on the court. Therefore the optimal distance for the four point arc that I calculated at 28.284 feet would just be the top part of the arc and would not include the sides of the arc. 
+
+If the NBA decided to add a four point arc to the game, this would hold consequences for the world of basketball. For example, if there was a four point arc in the NBA, there would be a new and exciting part of the game that was added. This would likely increase fan attendance and viewing, which could be a positive consequence for the NBA. Another consequence that could be present due to the addition of the four point arc is that basketball could move away from it's traditional ways. If the four point arc was introduced, basketball would become more about shooting then it would about other skills and aspects of offenses. The four point arc would also likely change the way that teams play defense against opponents, showing how basketball as we know it would likely change. Lastly, the four point arc would increase certain NBA players overall season point totals. NBA players who specialize in shooting would likely rise to the top with overall season point totals, whereas players who do not specialize in shooting overall season point totals would not change much. Therefore, we see that the addition of the four point arc to the NBA would have different consequences. 
+
+
